@@ -1,0 +1,11 @@
+{
+  "recommendations": ["Vue.volar"],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true // 保存时自动修复 ESLint 错误
+  },
+  "eslint.validate": ["javascript", "typescript", "vue"], // 检测的文件类型
+  "editor.formatOnSave": false, // 避免和 ESLint 冲突
+  "eslint.codeAction.showDocumentation": {
+    "enable": true
+  }
+}
