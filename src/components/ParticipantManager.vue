@@ -1,7 +1,7 @@
 <!--
  * @Author: baiwumm me@baiwumm.com
  * @FilePath: \SplitCat\src\components\ParticipantManager.vue
- * @Description: 参与人员管理组件 - 现代化重构版
+ * @Description: 参与人员管理组件 - 现代化简洁版
  * 
  * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
 -->
@@ -42,6 +42,7 @@ const columns = [
     title: "头像",
     key: "avatar",
     width: 60,
+    align: 'center',
     render: (row: any) => {
       return h(
         NAvatar,
@@ -60,9 +61,9 @@ const columns = [
     title: "姓名",
     key: "name",
     render: (row: any) => {
-      return h("div", { class: "participant-name" }, [
-        h("span", { class: "name-text" }, row.name),
-        h("span", { class: "name-id" }, `#${row.id.slice(-4)}`),
+      return h("div", { class: "flex flex-col" }, [
+        h("span", { class: "font-medium text-gray-800" }, row.name),
+        h("span", { class: "text-xs text-gray-500" }, `#${row.id.slice(-4)}`),
       ]);
     },
   },
@@ -70,6 +71,7 @@ const columns = [
     title: "参与项目",
     key: "expenseCount",
     width: 120,
+    align: 'center',
     render: (row: any) => {
       const count = splitStore.expenses.filter((expense) => expense.participants.includes(row.id)).length;
       return h(
@@ -87,28 +89,21 @@ const columns = [
     title: "操作",
     key: "actions",
     width: 120,
+    align: 'center',
     render: (row: any) => {
       return h(
-        NSpace,
-        { size: "small" },
+        NButton,
         {
-          default: () => [
-            h(
-              NButton,
-              {
-                size: "small",
-                type: "error",
-                ghost: true,
-                onClick: () => removeParticipant(row.id),
-              },
-              {
-                default: () => "删除",
-                icon: () => h(NIcon, null, { default: () => h(Icon, { icon: "mdi:delete-outline" }) }),
-              }
-            ),
-          ],
+          size: "small",
+          type: "error",
+          ghost: true,
+          onClick: () => removeParticipant(row.id),
+        },
+        {
+          default: () => "删除",
+          icon: () => h(NIcon, null, { default: () => h(Icon, { icon: "mdi:delete-outline" }) }),
         }
-      );
+      )
     },
   },
 ];
@@ -195,68 +190,77 @@ const clearAllParticipants = () => {
 </script>
 
 <template>
-  <div class="participant-manager">
+  <div class="space-y-6">
     <!-- 统计卡片 -->
-    <div class="stats-grid">
-      <NCard class="stat-card" :bordered="false">
-        <div class="stat-content">
-          <NIcon size="32" class="stat-icon">
-            <Icon icon="mdi:account-group" />
-          </NIcon>
-          <div class="stat-info">
-            <div class="stat-value">{{ splitStore.participants.length }}</div>
-            <div class="stat-label">参与人数</div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- 参与人数卡片 -->
+      <NCard hoverable class="!rounded-xl">
+        <div class="flex justify-center items-center gap-2">
+          <div
+            class="w-14 h-14 rounded-full bg-indigo-500 bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-200">
+            <NIcon size="24" class="text-white">
+              <Icon icon="mdi:account-group" />
+            </NIcon>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-gray-800">{{ splitStore.participants.length }}</div>
+            <div class="text-sm text-gray-500 font-medium">参与人数</div>
           </div>
         </div>
       </NCard>
 
-      <NCard class="stat-card" :bordered="false">
-        <div class="stat-content">
-          <NIcon size="32" class="stat-icon">
-            <Icon icon="mdi:cash-multiple" />
-          </NIcon>
-          <div class="stat-info">
-            <div class="stat-value">{{ splitStore.expenses.length }}</div>
-            <div class="stat-label">消费项目</div>
+      <!-- 消费项目卡片 -->
+      <NCard hoverable class="!rounded-xl">
+        <div class="flex justify-center items-center gap-2">
+          <div
+            class="w-14 h-14 rounded-full bg-amber-500 bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-200">
+            <NIcon size="24" class="text-white">
+              <Icon icon="mdi:cash-multiple" />
+            </NIcon>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-gray-800">{{ splitStore.expenses.length }}</div>
+            <div class="text-sm text-gray-500 font-medium">消费项目</div>
           </div>
         </div>
       </NCard>
 
-      <NCard class="stat-card" :bordered="false">
-        <div class="stat-content">
-          <NIcon size="32" class="stat-icon">
-            <Icon icon="mdi:currency-cny" />
-          </NIcon>
-          <div class="stat-info">
-            <div class="stat-value">¥{{ splitStore.totalAmount.toFixed(2) }}</div>
-            <div class="stat-label">总金额</div>
+      <!-- 总金额卡片 -->
+      <NCard hoverable class="!rounded-xl">
+        <div class="flex justify-center items-center gap-2">
+          <div
+            class="w-14 h-14 rounded-full bg-emerald-500 bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200">
+            <NIcon size="24" class="text-white">
+              <Icon icon="mdi:currency-cny" />
+            </NIcon>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-gray-800">¥{{ splitStore.totalAmount.toFixed(2) }}</div>
+            <div class="text-sm text-gray-500 font-medium">总金额</div>
           </div>
         </div>
       </NCard>
     </div>
 
-    <div class="content-grid">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- 左侧：添加参与者 -->
-      <div class="left-panel">
-        <NCard class="feature-card" :bordered="false">
-          <template #header>
-            <div class="card-header">
-              <NIcon size="20" class="card-icon">
-                <Icon icon="mdi:account-plus-outline" />
-              </NIcon>
-              <span>添加新参与者</span>
+      <n-card hoverable class="!rounded-xl">
+        <div class="flex flex-col">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+              <Icon icon="mdi:account-plus-outline" class="size-5 text-indigo-500" />
             </div>
-          </template>
+            <h3 class="text-lg font-semibold text-gray-800">添加新参与者</h3>
+          </div>
 
-          <div class="input-section">
+          <div class="flex flex-col gap-4 mt-4">
             <NInputGroup>
               <NInputGroupLabel>姓名</NInputGroupLabel>
-              <NInput v-model:value="newParticipantName" placeholder="输入参与者姓名" @keyup.enter="addParticipant" round
-                class="name-input" />
+              <NInput v-model:value="newParticipantName" placeholder="输入参与者姓名" @keyup.enter="addParticipant" round />
             </NInputGroup>
 
-            <NButton @click="addParticipant" type="primary" :disabled="!newParticipantName.trim()" round
-              class="add-button">
+            <NButton @click="addParticipant" type="primary" :disabled="!newParticipantName.trim()" round block
+              class="h-10">
               <template #icon>
                 <NIcon>
                   <Icon icon="mdi:plus" />
@@ -267,86 +271,83 @@ const clearAllParticipants = () => {
           </div>
 
           <!-- 快速添加常用联系人 -->
-          <NDivider title-placement="left">
-            <NIcon size="16">
-              <Icon icon="mdi:lightning-bolt" />
-            </NIcon>
-            <span class="divider-text">快速添加</span>
-          </NDivider>
+          <n-divider>
+            <template #default>
+              <div class="flex items-center gap-1 text-sm text-gray-500">
+                <Icon icon="mdi:lightning-bolt" size="16" />
+                <span>快速添加</span>
+              </div>
+            </template>
+          </n-divider>
 
-          <div class="quick-contacts">
+          <div class="flex flex-wrap gap-2">
             <NTag v-for="contact in commonContacts" :key="contact" @click="quickAddParticipant(contact)"
-              class="contact-chip" :bordered="false" round size="medium" type="info"
+              class="!cursor-pointer" :bordered="false" round size="medium" type="success"
               :disabled="splitStore.participants.some((p) => p.name === contact)">
               <template #icon>
-                <NIcon>
-                  <Icon icon="mdi:account" />
-                </NIcon>
+                <Icon icon="mdi:account" />
               </template>
               {{ contact }}
             </NTag>
           </div>
-        </NCard>
-      </div>
+        </div>
+      </n-card>
 
       <!-- 右侧：参与者列表 -->
-      <div class="right-panel">
-        <NCard class="feature-card" :bordered="false">
-          <template #header>
-            <div class="card-header">
-              <NIcon size="20" class="card-icon">
-                <Icon icon="mdi:format-list-bulleted" />
-              </NIcon>
-              <span>参与者列表</span>
-              <NTag v-if="splitStore.participants.length > 0" class="count-tag" type="success" size="small" round>
-                {{ splitStore.participants.length }}人
-              </NTag>
+      <n-card hoverable class="!rounded-xl lg:col-span-2">
+
+        <div class="flex items-center justify-between mb-5">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+              <Icon icon="mdi:format-list-bulleted" class="text-indigo-500 size-6" />
             </div>
-          </template>
-
-          <!-- 搜索栏 -->
-          <div v-if="splitStore.participants.length > 0" class="search-section">
-            <NInput v-model:value="searchKeyword" placeholder="搜索参与者..." round class="search-input">
-              <template #prefix>
-                <NIcon>
-                  <Icon icon="mdi:magnify" />
-                </NIcon>
-              </template>
-            </NInput>
+            <h3 class="text-lg font-semibold text-gray-800">参与者列表</h3>
           </div>
+          <NTag v-if="splitStore.participants.length > 0" type="success" size="small" round>
+            {{ splitStore.participants.length }}人
+          </NTag>
+        </div>
 
-          <!-- 空状态 -->
-          <div v-if="splitStore.participants.length === 0" class="empty-state">
-            <NEmpty description="还没有添加参与者">
-              <template #icon>
-                <NIcon size="64" class="empty-icon">
-                  <Icon icon="mdi:account-group-outline" />
-                </NIcon>
-              </template>
-              <template #extra>
-                <NText depth="3" class="empty-desc"> 请先添加参与分账的朋友 </NText>
-              </template>
-            </NEmpty>
+        <!-- 搜索栏 -->
+        <div v-if="splitStore.participants.length > 0" class="mb-4">
+          <NInput v-model:value="searchKeyword" placeholder="搜索参与者..." round>
+            <template #prefix>
+              <Icon icon="mdi:magnify" />
+            </template>
+          </NInput>
+        </div>
+
+        <!-- 空状态 -->
+        <div v-if="splitStore.participants.length === 0" class="py-12 flex flex-col items-center justify-center">
+          <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+            <NIcon size="32" class="text-gray-400">
+              <Icon icon="mdi:account-group-outline" />
+            </NIcon>
           </div>
+          <div class="text-gray-500 font-medium">还没有添加参与者</div>
+          <div class="text-sm text-gray-400 mt-1">请先添加参与分账的朋友</div>
+        </div>
 
-          <!-- 参与者表格 -->
-          <div v-else-if="filteredParticipants.length === 0" class="empty-state">
-            <NEmpty description="没有找到匹配的参与者">
-              <template #icon>
-                <NIcon size="64" class="empty-icon">
-                  <Icon icon="mdi:magnify" />
-                </NIcon>
-              </template>
-            </NEmpty>
+        <!-- 搜索无结果 -->
+        <div v-else-if="filteredParticipants.length === 0" class="py-12 flex flex-col items-center justify-center">
+          <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+            <NIcon size="32" class="text-gray-400">
+              <Icon icon="mdi:magnify" />
+            </NIcon>
           </div>
+          <div class="text-gray-500 font-medium">没有找到匹配的参与者</div>
+          <div class="text-sm text-gray-400 mt-1">请尝试其他搜索关键词</div>
+        </div>
 
-          <div v-else class="participant-table">
+        <!-- 参与者表格 -->
+        <div v-else>
+          <div class="rounded-lg overflow-hidden mb-4">
             <NDataTable :columns="columns" :data="filteredParticipants" :pagination="{ pageSize: 8 }" :bordered="false"
-              :single-line="false" class="custom-table" />
+              :single-line="false" />
           </div>
 
           <!-- 操作按钮 -->
-          <div v-if="splitStore.participants.length > 0" class="action-buttons">
+          <div class="flex justify-end pt-4 border-t border-gray-100">
             <NPopconfirm @positive-click="clearAllParticipants">
               <template #trigger>
                 <NButton type="warning" ghost size="small">
@@ -361,290 +362,24 @@ const clearAllParticipants = () => {
               确定要清空所有参与者吗？
             </NPopconfirm>
           </div>
-        </NCard>
-      </div>
+        </div>
+      </n-card>
     </div>
 
     <!-- 操作提示 -->
-    <NCard v-if="splitStore.participants.length > 0" class="tip-card" :bordered="false">
-      <div class="tip-content">
-        <NIcon size="24" class="tip-icon">
-          <Icon icon="mdi:lightbulb-outline" />
-        </NIcon>
-        <div class="tip-text">
-          <p class="tip-title">下一步</p>
-          <p class="tip-desc">添加完参与者后，点击左侧"消费录入"开始记录消费项目</p>
+    <div v-if="splitStore.participants.length > 0"
+      class="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+          <NIcon size="20" class="text-amber-500">
+            <Icon icon="mdi:lightbulb-outline" />
+          </NIcon>
+        </div>
+        <div>
+          <p class="font-medium text-amber-800 mb-1">下一步</p>
+          <p class="text-amber-700 text-sm">添加完参与者后，点击上方"消费录入"开始记录消费项目</p>
         </div>
       </div>
-    </NCard>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.participant-manager {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.stat-icon {
-  opacity: 0.9;
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 14px;
-  opacity: 0.9;
-  margin-top: 4px;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 24px;
-}
-
-.left-panel,
-.right-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.feature-card {
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
-}
-
-.feature-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: #1a202c;
-}
-
-.card-icon {
-  color: #667eea;
-}
-
-.count-tag {
-  margin-left: auto;
-}
-
-.input-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.name-input {
-  flex: 1;
-}
-
-.add-button {
-  height: 40px;
-  font-weight: 500;
-}
-
-.divider-text {
-  margin-left: 8px;
-  font-size: 14px;
-  color: #64748b;
-}
-
-.quick-contacts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.contact-chip {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.contact-chip:hover:not(:disabled) {
-  transform: scale(1.05);
-}
-
-.contact-chip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.search-section {
-  margin-bottom: 16px;
-}
-
-.search-input {
-  width: 100%;
-}
-
-.empty-state {
-  padding: 40px 20px;
-  text-align: center;
-}
-
-.empty-icon {
-  color: #cbd5e1;
-}
-
-.empty-desc {
-  margin-top: 8px;
-}
-
-.participant-table {
-  margin-bottom: 16px;
-}
-
-.custom-table :deep(.n-data-table) {
-  border-radius: 8px;
-}
-
-.custom-table :deep(.n-data-table-th) {
-  background: #f8fafc;
-  font-weight: 600;
-}
-
-.custom-table :deep(.n-data-table-td) {
-  padding: 12px 16px;
-}
-
-.participant-name {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.name-text {
-  font-weight: 500;
-  color: #1a202c;
-}
-
-.name-id {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.tip-card {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border: 1px solid #f59e0b;
-}
-
-.tip-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.tip-icon {
-  color: #f59e0b;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.tip-text {
-  flex: 1;
-}
-
-.tip-title {
-  font-weight: 600;
-  color: #92400e;
-  margin: 0 0 4px 0;
-}
-
-.tip-desc {
-  color: #92400e;
-  margin: 0;
-  opacity: 0.8;
-}
-
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .content-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .quick-contacts {
-    justify-content: center;
-  }
-
-  .action-buttons {
-    justify-content: center;
-  }
-}
-
-/* 动画效果 */
-.feature-card {
-  animation: fadeInUp 0.3s ease;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-</style>
