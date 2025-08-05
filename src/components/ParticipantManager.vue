@@ -12,18 +12,17 @@ import {
   NInput,
   NButton,
   NIcon,
-  NText,
   NTag,
   NDataTable,
-  NSpace,
   NPopconfirm,
-  NEmpty,
   NAvatar,
   NDivider,
   NInputGroup,
   NInputGroupLabel,
   useMessage,
+  NModal
 } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
 import { ref, computed, h } from "vue";
 
 import { useSplitStore } from "../stores/splitStore";
@@ -34,16 +33,16 @@ const newParticipantName = ref("");
 const searchKeyword = ref("");
 
 // 常用联系人
-const commonContacts = ["张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十"];
+const commonContacts = ["批头", "大欧", "黑", "攀", "良总", "奶罩", "小象", "肚","曲"];
 
 // 表格列配置
-const columns = [
+const columns: DataTableColumns<any> = [
   {
     title: "头像",
     key: "avatar",
     width: 60,
-    align: 'center',
-    render: (row: any) => {
+    align: "center",
+    render: (row) => {
       return h(
         NAvatar,
         {
@@ -60,19 +59,29 @@ const columns = [
   {
     title: "姓名",
     key: "name",
-    render: (row: any) => {
-      return h("div", { class: "flex flex-col" }, [
-        h("span", { class: "font-medium text-gray-800" }, row.name),
-        h("span", { class: "text-xs text-gray-500" }, `#${row.id.slice(-4)}`),
-      ]);
+    align: "center",
+    render: (row) => {
+      return h(
+        NTag,
+        {
+          type: "primary",
+          size: "medium",
+          round: true,
+          bordered: false,
+        },
+        {
+          default: () => row.name,
+          icon: () => h(Icon, { icon: "mdi:account" }),
+        }
+      );
     },
   },
   {
     title: "参与项目",
     key: "expenseCount",
     width: 120,
-    align: 'center',
-    render: (row: any) => {
+    align: "center",
+    render: (row) => {
       const count = splitStore.expenses.filter((expense) => expense.participants.includes(row.id)).length;
       return h(
         NTag,
@@ -89,15 +98,15 @@ const columns = [
     title: "操作",
     key: "actions",
     width: 120,
-    align: 'center',
-    render: (row: any) => {
+    align: "center",
+    render: (row) => {
       return h(
         NButton,
         {
           size: "small",
           type: "error",
           ghost: true,
-          onClick: () => removeParticipant(row.id),
+          onClick: () => checkBeforeDelete(row.id),
         },
         {
           default: () => "删除",
@@ -162,19 +171,49 @@ const quickAddParticipant = (name: string) => {
   message.success(`已添加 ${name}`);
 };
 
-// 删除参与者
-const removeParticipant = (id: string) => {
+// 删除确认相关
+const showDeleteConfirm = ref(false);
+const participantToDelete = ref<string>("");
+const deleteWarningMessage = ref("");
+
+// 检查参与者是否是某个消费项目的支付者
+const isExpensePayer = (participantId: string) => {
+  return splitStore.expenses.some(expense => expense.payerId === participantId);
+};
+
+// 删除参与者前的检查
+const checkBeforeDelete = (id: string) => {
   const participant = splitStore.participants.find((p) => p.id === id);
   if (!participant) return;
 
-  const expenseCount = splitStore.expenses.filter((expense) => expense.participants.includes(id)).length;
-
-  if (expenseCount > 0) {
-    message.warning(`该参与者参与了 ${expenseCount} 个消费项目，删除后相关数据将被清除`);
+  participantToDelete.value = id;
+  
+  // 检查是否是支付者
+  if (isExpensePayer(id)) {
+    message.error(`该参与者是某些消费项目的支付者，无法删除`);
+    return;
   }
 
-  splitStore.removeParticipant(id);
+  // 检查参与的消费项目数量
+  const expenseCount = splitStore.expenses.filter((expense) => expense.participants.includes(id)).length;
+  
+  if (expenseCount > 0) {
+    deleteWarningMessage.value = `该参与者参与了 ${expenseCount} 个消费项目，删除后相关数据将被清除`;
+  } else {
+    deleteWarningMessage.value = "确定要删除该参与者吗？";
+  }
+  
+  showDeleteConfirm.value = true;
+};
+
+// 确认删除参与者
+const confirmDeleteParticipant = () => {
+  if (!participantToDelete.value) return;
+  
+  splitStore.removeParticipant(participantToDelete.value);
   message.success("参与者删除成功");
+  showDeleteConfirm.value = false;
+  participantToDelete.value = "";
 };
 
 // 清空所有参与者
@@ -184,8 +223,10 @@ const clearAllParticipants = () => {
     return;
   }
 
+  // 清空所有参与者的同时也清空消费项目
   splitStore.participants = [];
-  message.success("已清空所有参与者");
+  splitStore.expenses = [];
+  message.success("已清空所有参与者和消费项目");
 };
 </script>
 
@@ -202,7 +243,7 @@ const clearAllParticipants = () => {
               <Icon icon="mdi:account-group" />
             </NIcon>
           </div>
-          <div>
+          <div class="text-center">
             <div class="text-2xl font-bold text-gray-800">{{ splitStore.participants.length }}</div>
             <div class="text-sm text-gray-500 font-medium">参与人数</div>
           </div>
@@ -218,7 +259,7 @@ const clearAllParticipants = () => {
               <Icon icon="mdi:cash-multiple" />
             </NIcon>
           </div>
-          <div>
+          <div class="text-center">
             <div class="text-2xl font-bold text-gray-800">{{ splitStore.expenses.length }}</div>
             <div class="text-sm text-gray-500 font-medium">消费项目</div>
           </div>
@@ -234,7 +275,7 @@ const clearAllParticipants = () => {
               <Icon icon="mdi:currency-cny" />
             </NIcon>
           </div>
-          <div>
+          <div class="text-center">
             <div class="text-2xl font-bold text-gray-800">¥{{ splitStore.totalAmount.toFixed(2) }}</div>
             <div class="text-sm text-gray-500 font-medium">总金额</div>
           </div>
@@ -247,9 +288,7 @@ const clearAllParticipants = () => {
       <n-card hoverable class="!rounded-xl">
         <div class="flex flex-col">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-              <Icon icon="mdi:account-plus-outline" class="size-5 text-indigo-500" />
-            </div>
+              <Icon icon="mdi:account-plus-outline" class="size-6 text-indigo-500" />
             <h3 class="text-lg font-semibold text-gray-800">添加新参与者</h3>
           </div>
 
@@ -282,7 +321,7 @@ const clearAllParticipants = () => {
 
           <div class="flex flex-wrap gap-2">
             <NTag v-for="contact in commonContacts" :key="contact" @click="quickAddParticipant(contact)"
-              class="!cursor-pointer" :bordered="false" round size="medium" type="success"
+              class="!cursor-pointer" :bordered="false" round size="small" type="success"
               :disabled="splitStore.participants.some((p) => p.name === contact)">
               <template #icon>
                 <Icon icon="mdi:account" />
@@ -298,9 +337,7 @@ const clearAllParticipants = () => {
 
         <div class="flex items-center justify-between mb-5">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
               <Icon icon="mdi:format-list-bulleted" class="text-indigo-500 size-6" />
-            </div>
             <h3 class="text-lg font-semibold text-gray-800">参与者列表</h3>
           </div>
           <NTag v-if="splitStore.participants.length > 0" type="success" size="small" round>
@@ -342,7 +379,7 @@ const clearAllParticipants = () => {
         <!-- 参与者表格 -->
         <div v-else>
           <div class="rounded-lg overflow-hidden mb-4">
-            <NDataTable :columns="columns" :data="filteredParticipants" :pagination="{ pageSize: 8 }" :bordered="false"
+            <NDataTable :columns="columns" :data="filteredParticipants" :pagination="{ pageSize: 5 }" :bordered="false"
               :single-line="false" />
           </div>
 
@@ -359,7 +396,7 @@ const clearAllParticipants = () => {
                   清空所有
                 </NButton>
               </template>
-              确定要清空所有参与者吗？
+              确定要清空所有参与者吗？这将同时清空所有消费项目！
             </NPopconfirm>
           </div>
         </div>
@@ -381,5 +418,26 @@ const clearAllParticipants = () => {
         </div>
       </div>
     </div>
+    
+    <!-- 删除确认弹窗 -->
+    <NModal v-model:show="showDeleteConfirm" preset="dialog" title="温馨提示" 
+      positive-text="确认删除" negative-text="取消" 
+      @positive-click="confirmDeleteParticipant" 
+      @negative-click="showDeleteConfirm = false">
+      <div class="flex flex-col gap-4 py-2">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 text-amber-600">
+            <NIcon size="24">
+              <Icon icon="mdi:alert" />
+            </NIcon>
+          </div>
+          <div class="text-lg font-medium text-gray-800">{{ deleteWarningMessage }}</div>
+        </div>
+        <div v-if="deleteWarningMessage.includes('消费项目')" class="text-gray-600 pl-12">
+          <p>此操作将从相关消费项目中移除该参与者。</p>
+          <p class="mt-2 text-amber-600 font-medium">请确认是否继续？</p>
+        </div>
+      </div>
+    </NModal>
   </div>
 </template>

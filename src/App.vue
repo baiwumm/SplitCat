@@ -13,11 +13,8 @@ import {
   NConfigProvider,
   NDialogProvider,
   NMessageProvider,
-  NIcon,
   zhCN,
   dateZhCN,
-  NButton,
-  NSpace,
   NTabs,
   NTabPane,
   NCard
@@ -28,10 +25,8 @@ import AppHeader from "./components/AppHeader.vue";
 import ExpenseManager from "./components/ExpenseManager.vue";
 import ParticipantManager from "./components/ParticipantManager.vue";
 import SplitResults from "./components/SplitResults.vue";
-import { useSplitStore } from "./stores/splitStore";
 
 const currentTab = ref<"participants" | "expenses" | "results">("participants");
-const splitStore = useSplitStore();
 
 // 切换标签的方法
 const switchTab = (tab: "participants" | "expenses" | "results") => {
@@ -75,28 +70,6 @@ const switchTab = (tab: "participants" | "expenses" | "results") => {
                   </template>
                 </NTabPane>
               </NTabs>
-
-              <NSpace>
-                <NButton v-if="
-                  currentTab === 'results' && splitStore.participants.length > 0 && splitStore.expenses.length > 0
-                " type="primary" @click="splitStore.exportResults" size="medium" round>
-                  <template #icon>
-                    <NIcon>
-                      <Icon icon="mdi:download" />
-                    </NIcon>
-                  </template>
-                  导出结果
-                </NButton>
-                <NButton v-if="currentTab === 'results'" type="warning" @click="splitStore.clearAll" size="medium"
-                  round>
-                  <template #icon>
-                    <NIcon>
-                      <Icon icon="mdi:refresh" />
-                    </NIcon>
-                  </template>
-                  清空数据
-                </NButton>
-              </NSpace>
 
               <!-- 页面内容 -->
               <keep-alive>

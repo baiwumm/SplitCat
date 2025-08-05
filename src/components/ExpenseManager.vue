@@ -16,8 +16,6 @@ import {
   NDataTable,
   NTag,
   NPopconfirm,
-  NEmpty,
-  NText,
   NCard,
   useMessage,
 } from "naive-ui";
@@ -36,6 +34,7 @@ const newExpense = reactive({
 });
 
 const selectedParticipants = ref<string[]>([]);
+const selectedPayer = ref<string>("");
 
 // 编辑相关
 const showEditModal = ref(false);
@@ -44,6 +43,7 @@ const editingExpense = reactive({
   name: "",
   amount: 0,
   participants: [] as string[],
+  payerId: "",
 });
 
 // 表格列定义
@@ -51,45 +51,106 @@ const columns = computed<DataTableColumns<ExpenseItem>>(() => [
   {
     title: "消费项目",
     key: "name",
+    align:'center',
     render(row) {
-      return h("div", { class: "expense-item-name" }, row.name);
+      return h("div", { class: "font-medium text-gray-800" }, row.name);
     },
   },
   {
     title: "金额",
     key: "amount",
+    align:'center',
     render(row) {
-      return h("div", { class: "expense-item-amount" }, `¥${row.amount.toFixed(2)}`);
+      return h("div", { class: "font-semibold text-red-500" }, `¥${row.amount.toFixed(2)}`);
+    },
+  },
+  {
+    title: "支付者",
+    key: "payer",
+    align: "center",
+    render(row) {
+      const payerName = row.payerId ? getParticipantName(row.payerId) : "未指定";
+      return h(
+        NTag,
+        {
+          type: "success",
+          size: "small",
+          round: true,
+          bordered: false,
+        },
+        {
+          default: () => payerName,
+          icon: () => h(Icon, { icon: "mdi:cash" }),
+        }
+      );
     },
   },
   {
     title: "参与人员",
     key: "participants",
+    align: "center",
     render(row) {
-      return h("div", { class: "expense-item-participants" },
-        h("div", { class: "participants-list" }, getParticipantNames(row.participants).join("、"))
-      );
+      if (row.participants.length === 0) {
+        return h("div", { class: "text-sm text-gray-400" }, "无参与者");
+      }
+      
+      // 如果参与者太多，只显示前两个并加上"等x人"
+      const maxDisplay = 2;
+      const displayParticipants = row.participants.slice(0, maxDisplay);
+      const remainingCount = row.participants.length - maxDisplay;
+      
+      return h("div", { class: "flex flex-wrap gap-1 justify-center" }, [
+        ...displayParticipants.map(id => {
+          const name = getParticipantName(id);
+          return h(
+            NTag,
+            {
+              type: "primary",
+              size: "small",
+              round: true,
+              bordered: false,
+            },
+            {
+              default: () => name,
+              icon: () => h(Icon, { icon: "mdi:account" }),
+            }
+          );
+        }),
+        remainingCount > 0 ? h(
+          NTag,
+          {
+            type: "default",
+            size: "small",
+            round: true,
+          },
+          {
+            default: () => `等${row.participants.length}人`,
+          }
+        ) : null
+      ].filter(Boolean));
     },
   },
   {
     title: "人均",
     key: "average",
+    align:'center',
     render(row) {
-      return h("div", { class: "expense-item-average" }, `¥${(row.amount / row.participants.length).toFixed(2)}`);
+      return h("div", { class: "text-sm font-medium text-indigo-600" }, `¥${(row.amount / row.participants.length).toFixed(2)}`);
     },
   },
   {
     title: "操作",
     key: "actions",
     width: 120,
+    align:'center',
     render(row) {
-      return h("div", { class: "expense-item-actions" }, [
+      return h("div", { class: "flex gap-2" }, [
         h(
           NButton,
           {
             size: "small",
             quaternary: true,
-            class: "action-button",
+            class: "flex items-center gap-1",
             onClick: () => editExpense(row),
           },
           {
@@ -111,7 +172,7 @@ const columns = computed<DataTableColumns<ExpenseItem>>(() => [
                 {
                   size: "small",
                   quaternary: true,
-                  class: "action-button",
+                  class: "flex items-center gap-1",
                 },
                 {
                   default: () => [
@@ -172,12 +233,30 @@ const addExpense = () => {
     return;
   }
 
-  splitStore.addExpense(newExpense.name, newExpense.amount, selectedParticipants.value);
+  if (!selectedPayer.value) {
+    message.warning("请选择支付者");
+    return;
+  }
+
+  // 确保支付者也是参与者
+  if (!selectedParticipants.value.includes(selectedPayer.value)) {
+    selectedParticipants.value.push(selectedPayer.value);
+  }
+
+  const expenseId = splitStore.addExpense(
+    newExpense.name, 
+    newExpense.amount, 
+    selectedParticipants.value
+  );
+  
+  // 更新支付者信息
+  splitStore.updateExpense(expenseId, { payerId: selectedPayer.value });
 
   // 重置表单
   newExpense.name = "";
   newExpense.amount = 0;
   selectedParticipants.value = [];
+  selectedPayer.value = "";
 
   message.success("消费项目添加成功");
 };
@@ -187,6 +266,7 @@ const editExpense = (expense: ExpenseItem) => {
   editingExpense.name = expense.name;
   editingExpense.amount = expense.amount;
   editingExpense.participants = [...expense.participants];
+  editingExpense.payerId = expense.payerId || expense.participants[0] || "";
   showEditModal.value = true;
 };
 
@@ -206,10 +286,21 @@ const saveExpense = () => {
     return;
   }
 
+  if (!editingExpense.payerId) {
+    message.warning("请选择支付者");
+    return;
+  }
+
+  // 确保支付者也是参与者
+  if (!editingExpense.participants.includes(editingExpense.payerId)) {
+    editingExpense.participants.push(editingExpense.payerId);
+  }
+
   splitStore.updateExpense(editingExpense.id, {
     name: editingExpense.name,
     amount: editingExpense.amount,
     participants: editingExpense.participants,
+    payerId: editingExpense.payerId,
   });
 
   showEditModal.value = false;
@@ -224,6 +315,11 @@ const removeExpense = (id: string) => {
   }
 };
 
+const getParticipantName = (participantId: string) => {
+  const participant = splitStore.participants.find((p) => p.id === participantId);
+  return participant?.name || "未知";
+};
+
 const getParticipantNames = (participantIds: string[]) => {
   return participantIds.map((id) => {
     const participant = splitStore.participants.find((p) => p.id === id);
@@ -233,23 +329,23 @@ const getParticipantNames = (participantIds: string[]) => {
 </script>
 
 <template>
-  <div class="expense-manager">
-    <div class="expense-container">
+  <div class="flex flex-col gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- 左侧：添加消费项目 -->
-      <div class="expense-form-container">
-        <NCard class="expense-card">
+      <div class="lg:col-span-1">
+        <NCard class="bg-white rounded-lg shadow-md transition-all duration-300 h-full">
           <template #header>
-            <div class="card-header">
-              <NIcon size="20" class="card-icon">
-                <Icon icon="mdi:plus-circle" />
-              </NIcon>
-              <span>添加消费项目</span>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Icon icon="mdi:plus-circle" class="text-indigo-500 size-6" />
+                <span class="text-lg font-semibold text-gray-800">添加消费项目</span>
+              </div>
             </div>
           </template>
 
-          <div class="expense-form">
-            <div class="form-group">
-              <NInput v-model:value="newExpense.name" placeholder="消费项目名称" class="expense-input" round>
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-2">
+              <NInput v-model:value="newExpense.name" placeholder="消费项目名称" class="w-full" round>
                 <template #prefix>
                   <NIcon>
                     <Icon icon="mdi:tag-outline" />
@@ -258,47 +354,74 @@ const getParticipantNames = (participantIds: string[]) => {
               </NInput>
             </div>
 
-            <div class="form-group">
-              <NInputNumber v-model:value="newExpense.amount" placeholder="消费金额" :precision="2" :min="0"
-                class="expense-input" round>
+            <div class="flex flex-col gap-2">
+              <NInputNumber v-model:value="newExpense.amount" placeholder="消费金额" :precision="2" :min="0" class="w-full"
+                round>
                 <template #prefix>¥</template>
               </NInputNumber>
             </div>
 
-            <!-- 参与者选择 -->
-            <div class="form-group">
-              <div class="group-header">
-                <span class="group-label">参与人员</span>
-                <div class="group-actions">
-                  <NButton @click="selectAllParticipants" size="tiny" text>全选</NButton>
-                  <NButton @click="clearParticipants" size="tiny" text>清空</NButton>
-                </div>
+            <!-- 支付者选择 -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-600">支付者</span>
               </div>
-              
-              <div v-if="splitStore.participants.length === 0" class="empty-participants">
+
+              <div v-if="splitStore.participants.length === 0"
+                class="flex items-center gap-2 p-3 bg-gray-100 rounded-md text-gray-500 text-sm">
                 <NIcon size="18">
                   <Icon icon="mdi:account-alert" />
                 </NIcon>
                 <span>请先添加参与者</span>
               </div>
-              <div v-else class="participants-selector">
-                <div class="participants-tags">
+              <div v-else class="flex flex-col gap-3">
+                <div class="flex flex-wrap gap-2">
                   <NTag v-for="participant in splitStore.participants" :key="participant.id"
-                    :type="selectedParticipants.includes(participant.id) ? 'primary' : 'default'" 
-                    :bordered="false"
-                    round 
-                    size="small" 
-                    class="participant-tag" 
-                    @click="toggleParticipant(participant.id)">
+                    :type="selectedPayer === participant.id ? 'success' : 'default'" :bordered="false"
+                    round size="small" class="!cursor-pointer" @click="selectedPayer = participant.id">
                     {{ participant.name }}
+                    <template #icon>
+                      <Icon icon="mdi:cash" />
+                    </template>
+                  </NTag>
+                </div>
+              </div>
+            </div>
+
+            <!-- 参与者选择 -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-600">参与人员</span>
+                <div class="flex gap-2">
+                  <NButton @click="selectAllParticipants" size="tiny" text>全选</NButton>
+                  <NButton @click="clearParticipants" size="tiny" text>清空</NButton>
+                </div>
+              </div>
+
+              <div v-if="splitStore.participants.length === 0"
+                class="flex items-center gap-2 p-3 bg-gray-100 rounded-md text-gray-500 text-sm">
+                <NIcon size="18">
+                  <Icon icon="mdi:account-alert" />
+                </NIcon>
+                <span>请先添加参与者</span>
+              </div>
+              <div v-else class="flex flex-col gap-3">
+                <div class="flex flex-wrap gap-2">
+                  <NTag v-for="participant in splitStore.participants" :key="participant.id"
+                    :type="selectedParticipants.includes(participant.id) ? 'primary' : 'default'" :bordered="false"
+                    round size="small" class="!cursor-pointer" @click="toggleParticipant(participant.id)">
+                    {{ participant.name }}
+                    <template #icon>
+                      <Icon icon="mdi:account" />
+                    </template>
                   </NTag>
                 </div>
               </div>
             </div>
 
             <NButton @click="addExpense" type="primary" block round
-              :disabled="!newExpense.name.trim() || !newExpense.amount || selectedParticipants.length === 0"
-              class="submit-button">
+              :disabled="!newExpense.name.trim() || !newExpense.amount || selectedParticipants.length === 0 || !selectedPayer"
+              class="h-10 font-medium mt-2">
               <template #icon>
                 <NIcon>
                   <Icon icon="mdi:plus" />
@@ -307,27 +430,65 @@ const getParticipantNames = (participantIds: string[]) => {
               添加消费项目
             </NButton>
           </div>
-        </NCard>
 
-        <!-- 总计信息 -->
-        <NCard v-if="splitStore.expenses.length > 0" class="summary-card">
-          <div class="summary-content">
-            <div class="summary-main">
-              <div class="summary-label">消费总计</div>
-              <div class="summary-amount">¥{{ splitStore.totalAmount.toFixed(2) }}</div>
-            </div>
-            <div class="summary-details">
-              <div class="summary-item">
-                <NIcon size="16">
-                  <Icon icon="mdi:receipt" />
-                </NIcon>
-                <span>{{ splitStore.expenses.length }} 项消费</span>
+          <!-- 总计信息 -->
+          <div v-if="splitStore.expenses.length > 0" class="mt-6 relative overflow-hidden">
+            <div class="bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-700 rounded-2xl p-6 shadow-lg relative z-10">
+              <!-- 装饰元素 -->
+              <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
+              <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12 blur-lg"></div>
+              
+              <!-- 金额显示 -->
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-col">
+                  <span class="text-white/80 text-sm font-medium mb-1">消费总计</span>
+                  <div class="flex items-baseline">
+                    <span class="text-white text-4xl font-bold tracking-tight">¥{{ splitStore.totalAmount.toFixed(2) }}</span>
+                    <span class="text-white/70 ml-2 text-sm">CNY</span>
+                  </div>
+                </div>
+                <div class="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Icon icon="mdi:currency-cny" class="text-white text-2xl" />
+                </div>
               </div>
-              <div class="summary-item">
-                <NIcon size="16">
-                  <Icon icon="mdi:account-group" />
-                </NIcon>
-                <span>{{ splitStore.participants.length }} 人参与</span>
+              
+              <!-- 统计信息 -->
+              <div class="grid grid-cols-2 gap-4 mt-6">
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <Icon icon="mdi:receipt" class="text-white text-xl" />
+                  </div>
+                  <div>
+                    <div class="text-white text-lg font-bold">{{ splitStore.expenses.length }}</div>
+                    <div class="text-white/70 text-xs">消费项目</div>
+                  </div>
+                </div>
+                
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <Icon icon="mdi:account-group" class="text-white text-xl" />
+                  </div>
+                  <div>
+                    <div class="text-white text-lg font-bold">{{ splitStore.participants.length }}</div>
+                    <div class="text-white/70 text-xs">参与人数</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 人均消费 -->
+              <div class="mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <Icon icon="mdi:calculator" class="text-white text-xl" />
+                  </div>
+                  <div>
+                    <div class="text-white/70 text-xs">人均消费</div>
+                    <div class="text-white text-lg font-bold">¥{{ (splitStore.totalAmount / splitStore.participants.length).toFixed(2) }}</div>
+                  </div>
+                </div>
+                <div class="text-white/60 text-xs">
+                  {{ new Date().toLocaleDateString('zh-CN') }}
+                </div>
               </div>
             </div>
           </div>
@@ -335,16 +496,14 @@ const getParticipantNames = (participantIds: string[]) => {
       </div>
 
       <!-- 右侧：消费列表 -->
-      <div class="expense-list-container">
-        <NCard class="expense-card">
+      <div class="lg:col-span-2">
+        <NCard class="bg-white rounded-lg shadow-md transition-all duration-300 h-full">
           <template #header>
-            <div class="card-header">
-              <div class="header-left">
-                <NIcon size="20" class="card-icon">
-                  <Icon icon="mdi:format-list-bulleted" />
-                </NIcon>
-                <span>消费列表</span>
-                <NTag v-if="splitStore.expenses.length > 0" class="count-tag" type="success" size="small" round>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Icon icon="mdi:format-list-bulleted" class="text-indigo-500 size-6" />
+                <span class="text-lg font-semibold text-gray-800">消费列表</span>
+                <NTag v-if="splitStore.expenses.length > 0" class="ml-2" type="success" size="small" round>
                   {{ splitStore.expenses.length }}项
                 </NTag>
               </div>
@@ -352,53 +511,47 @@ const getParticipantNames = (participantIds: string[]) => {
           </template>
 
           <!-- 无数据状态 -->
-          <div v-if="splitStore.expenses.length === 0" class="empty-state">
-            <NEmpty description="还没有添加消费项目">
-              <template #icon>
-                <NIcon size="64" class="empty-icon">
-                  <Icon icon="mdi:receipt-text-outline" />
-                </NIcon>
-              </template>
-              <template #extra>
-                <NText depth="3" class="empty-desc">请在左侧添加消费项目</NText>
-              </template>
-            </NEmpty>
+          <div v-if="splitStore.expenses.length === 0" class="py-12 flex flex-col items-center justify-center">
+            <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <NIcon size="32" class="text-gray-400">
+                <Icon icon="mdi:receipt-text-outline" />
+              </NIcon>
+            </div>
+            <div class="text-gray-500 font-medium">还没有添加消费项目</div>
+            <div class="text-sm text-gray-400 mt-1">请在左侧添加消费项目</div>
           </div>
 
           <!-- 消费列表 -->
-          <div v-else class="expense-list">
-            <div class="expense-table-container">
-              <NDataTable 
-                :columns="columns" 
-                :data="splitStore.expenses" 
-                :pagination="{ pageSize: 10 }"
-                :bordered="false" 
-                class="expense-table" 
-              />
+          <div v-else class="flex flex-col">
+            <div class="overflow-x-auto">
+              <NDataTable :columns="columns" :data="splitStore.expenses" :pagination="{ pageSize: 10 }"
+                :bordered="false" class="expense-table" />
             </div>
           </div>
-        </NCard>
 
-        <!-- 操作提示 -->
-        <NCard v-if="splitStore.expenses.length > 0" class="tip-card">
-          <div class="tip-content">
-            <NIcon size="24" class="tip-icon">
-              <Icon icon="mdi:lightbulb-on" />
-            </NIcon>
-            <div class="tip-text">
-              <p class="tip-title">小贴士</p>
-              <p class="tip-desc">添加完消费项目后，可以切换到"分账结果"查看每个人应付的金额</p>
+
+          <!-- 操作提示 -->
+          <NCard v-if="splitStore.expenses.length > 0"
+            class="bg-gradient-to-r from-green-200 to-blue-200 mt-4 rounded-lg shadow-md">
+            <div class="flex items-start gap-3">
+              <NIcon size="24" class="text-gray-800/60 mt-0.5">
+                <Icon icon="mdi:lightbulb-on" />
+              </NIcon>
+              <div>
+                <p class="font-semibold text-gray-800/80 mb-1">小贴士</p>
+                <p class="text-sm text-gray-800/70">添加完消费项目后，可以切换到"分账结果"查看每个人应付的金额</p>
+              </div>
             </div>
-          </div>
+          </NCard>
         </NCard>
       </div>
     </div>
   </div>
 
   <!-- 编辑弹窗 -->
-  <NModal v-model:show="showEditModal" preset="card" class="edit-modal">
+  <NModal v-model:show="showEditModal" preset="card" class="!w-[600px]">
     <template #header>
-      <div class="modal-header">
+      <div class="flex items-center gap-2 text-lg font-semibold">
         <NIcon size="20">
           <Icon icon="mdi:pencil" />
         </NIcon>
@@ -406,34 +559,61 @@ const getParticipantNames = (participantIds: string[]) => {
       </div>
     </template>
 
-    <div class="modal-content">
-      <div class="form-group">
-        <NInput v-model:value="editingExpense.name" placeholder="消费项目名称" round />
+    <div class="flex flex-col gap-5 py-2">
+      <div class="flex flex-col gap-2">
+        <NInput v-model:value="editingExpense.name" placeholder="消费项目名称" class="w-full" round>
+          <template #prefix>
+            <NIcon>
+              <Icon icon="mdi:tag-outline" />
+            </NIcon>
+          </template>
+        </NInput>
       </div>
 
-      <div class="form-group">
-        <NInputNumber v-model:value="editingExpense.amount" placeholder="金额" :precision="2" :min="0" class="expense-input"
+      <div class="flex flex-col gap-2">
+        <NInputNumber v-model:value="editingExpense.amount" placeholder="消费金额" :precision="2" :min="0" class="w-full"
           round>
           <template #prefix>¥</template>
         </NInputNumber>
       </div>
-
-      <div class="form-group">
-        <div class="group-header">
-          <span class="group-label">参与人员</span>
+      
+      <!-- 支付者选择 -->
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-medium text-gray-600">支付者</span>
         </div>
-        <div class="participants-tags edit-participants">
+        <div class="flex flex-wrap gap-2">
+          <NTag v-for="participant in splitStore.participants" :key="participant.id"
+            :type="editingExpense.payerId === participant.id ? 'success' : 'default'" :bordered="false" round
+            size="small" class="!cursor-pointer" @click="editingExpense.payerId = participant.id">
+            {{ participant.name }}
+            <template #icon>
+              <Icon icon="mdi:cash" />
+            </template>
+          </NTag>
+        </div>
+      </div>
+
+      <!-- 参与人员选择 -->
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-medium text-gray-600">参与人员</span>
+        </div>
+        <div class="flex flex-wrap gap-2 max-h-[120px] overflow-y-auto">
           <NTag v-for="participant in splitStore.participants" :key="participant.id"
             :type="editingExpense.participants.includes(participant.id) ? 'primary' : 'default'" :bordered="false" round
-            size="small" class="participant-tag" @click="toggleEditParticipant(participant.id)">
+            size="small" class="!cursor-pointer" @click="toggleEditParticipant(participant.id)">
             {{ participant.name }}
+            <template #icon>
+              <Icon icon="mdi:account" />
+            </template>
           </NTag>
         </div>
       </div>
     </div>
 
     <template #footer>
-      <div class="modal-footer">
+      <div class="flex justify-end gap-3 mt-2">
         <NButton @click="showEditModal = false" round quaternary>取消</NButton>
         <NButton @click="saveExpense" type="primary" round>保存</NButton>
       </div>
@@ -442,284 +622,9 @@ const getParticipantNames = (participantIds: string[]) => {
 </template>
 
 <style scoped>
-.expense-manager {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.expense-container {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 1.5rem;
-}
-
-.expense-card {
-  background: var(--bg-primary);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-md);
-  transition: all 0.3s ease;
-  height: 100%;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.card-icon {
-  color: var(--primary-color);
-}
-
-.count-tag {
-  margin-left: 0.5rem;
-}
-
-/* 表单样式 */
-.expense-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.group-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.group-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.expense-input {
-  width: 100%;
-}
-
-.empty-participants {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: var(--bg-tertiary);
-  border-radius: var(--border-radius-md);
-  color: var(--text-tertiary);
-  font-size: 0.875rem;
-}
-
-.participants-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.participants-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.participant-tag {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.participant-tag:hover {
-  transform: translateY(-2px);
-}
-
-.submit-button {
-  margin-top: 0.5rem;
-  height: 2.5rem;
-  font-weight: 500;
-}
-
-/* 总计卡片 */
-.summary-card {
-  background: var(--primary-gradient);
-  color: white;
-  margin-top: 1rem;
-}
-
-.summary-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.summary-main {
-  text-align: center;
-}
-
-.summary-label {
-  font-size: 0.875rem;
-  opacity: 0.9;
-  margin-bottom: 0.25rem;
-}
-
-.summary-amount {
-  font-size: 1.75rem;
-  font-weight: 700;
-}
-
-.summary-details {
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  padding-top: 0.75rem;
-}
-
-.summary-item {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-}
-
-/* 空状态 */
-.empty-state {
-  padding: 2rem 1rem;
-  text-align: center;
-}
-
-.empty-icon {
-  color: var(--text-tertiary);
-}
-
-.empty-desc {
-  margin-top: 0.5rem;
-}
-
-/* 表格样式 */
-.expense-table-container {
-  overflow-x: auto;
-}
-
+/* 表格样式覆盖 */
 .expense-table :deep(.n-data-table-th) {
-  background-color: var(--bg-tertiary);
+  background-color: #f8fafc;
   font-weight: 600;
-}
-
-.expense-item-name {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.expense-item-amount {
-  font-weight: 600;
-  color: var(--danger-color);
-}
-
-.expense-item-participants {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.expense-item-average {
-  font-size: 0.875rem;
-  color: var(--primary-color);
-  font-weight: 500;
-}
-
-.expense-item-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-button {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-/* 提示卡片 */
-.tip-card {
-  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
-  margin-top: 1rem;
-}
-
-.tip-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.tip-icon {
-  color: rgba(0, 0, 0, 0.6);
-  margin-top: 0.125rem;
-}
-
-.tip-title {
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.8);
-  margin-bottom: 0.25rem;
-}
-
-.tip-desc {
-  font-size: 0.875rem;
-  color: rgba(0, 0, 0, 0.7);
-}
-
-/* 编辑弹窗 */
-.edit-modal {
-  width: 400px;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
-.modal-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.5rem 0;
-}
-
-.edit-participants {
-  max-height: 120px;
-  overflow-y: auto;
-  padding: 0.5rem;
-  background: var(--bg-tertiary);
-  border-radius: var(--border-radius-md);
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .expense-container {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
 }
 </style>

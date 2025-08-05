@@ -26,10 +26,20 @@ import {
 import type { DataTableColumns } from "naive-ui";
 import { h, ref, computed } from "vue";
 
-import { useSplitStore, type Participant } from "@/stores/splitStore";
+import { useSplitStore } from "@/stores/splitStore";
 
 const splitStore = useSplitStore();
 const message = useMessage();
+
+// 清空数据相关
+const showClearConfirm = ref(false);
+
+// 清空所有数据
+const clearAllData = () => {
+  splitStore.clearAll();
+  message.success("已清空所有数据");
+  showClearConfirm.value = false;
+};
 
 // 分享相关
 const showShareModal = ref(false);
@@ -62,12 +72,14 @@ const participantSummary = computed(() => {
     };
   });
 
-  // 计算每个人支付的金额
+  // 根据支付者信息计算每个人支付的金额和消费的金额
   splitStore.expenses.forEach((expense) => {
-    // 找到支付者
-    const payer = summary[expense.payerId];
-    if (payer) {
-      payer.paid += expense.amount;
+    // 记录支付者支付的金额
+    if (expense.payerId) {
+      const payer = summary[expense.payerId];
+      if (payer) {
+        payer.paid += expense.amount;
+      }
     }
 
     // 计算每个参与者应该消费的金额
@@ -151,20 +163,35 @@ const columns = computed<DataTableColumns<any>>(() => [
   {
     title: "参与者",
     key: "name",
+    align: "center",
     render(row) {
-      return h("div", { class: "participant-name" }, row.name);
+      return h(
+        NTag,
+        {
+          type: "primary",
+          size: "small",
+          round: true,
+          bordered: false,
+        },
+        {
+          default: () => row.name,
+          icon: () => h(Icon, { icon: "mdi:account" }),
+        }
+      );
     },
   },
   {
     title: "支付金额",
     key: "paid",
+    align: "center",
     render(row) {
-      return h("div", { class: "amount paid-amount" }, `¥${row.paid.toFixed(2)}`);
+      return h("div", { class: "font-medium text-amber-500" }, `¥${row.paid.toFixed(2)}`);
     },
   },
   {
     title: "消费金额",
     key: "consumed",
+    align: "center",
     render(row) {
       return h(
         NPopover,
@@ -175,13 +202,13 @@ const columns = computed<DataTableColumns<any>>(() => [
         },
         {
           trigger: () =>
-            h("div", { class: "amount consumed-amount" }, `¥${row.consumed.toFixed(2)}`),
+            h("div", { class: "font-medium text-emerald-600 cursor-help underline decoration-dotted decoration-1" }, `¥${row.consumed.toFixed(2)}`),
           default: () =>
             h(
               NList,
               { bordered: false, size: "small" },
               {
-                header: () => h("div", { class: "popover-header" }, "消费明细"),
+                header: () => h("div", { class: "font-semibold mb-2 pb-2 border-b border-gray-200" }, "消费明细"),
                 default: () =>
                   row.details.map((detail: any) =>
                     h(
@@ -189,9 +216,9 @@ const columns = computed<DataTableColumns<any>>(() => [
                       {},
                       {
                         default: () =>
-                          h("div", { class: "detail-item" }, [
-                            h("span", { class: "detail-name" }, detail.name),
-                            h("span", { class: "detail-amount" }, `¥${detail.amount.toFixed(2)}`),
+                          h("div", { class: "flex justify-between items-center" }, [
+                            h("span", { class: "text-sm text-gray-600" }, detail.name),
+                            h("span", { class: "font-medium text-gray-800" }, `¥${detail.amount.toFixed(2)}`),
                           ]),
                       }
                     )
@@ -205,6 +232,7 @@ const columns = computed<DataTableColumns<any>>(() => [
   {
     title: "结算",
     key: "balance",
+    align: "center",
     render(row) {
       const isPositive = row.balance > 0;
       const isZero = row.balance === 0;
@@ -213,9 +241,8 @@ const columns = computed<DataTableColumns<any>>(() => [
         "div",
         {
           class: [
-            "amount",
-            "balance-amount",
-            isPositive ? "positive-balance" : isZero ? "zero-balance" : "negative-balance",
+            "font-semibold",
+            isPositive ? "text-emerald-600" : isZero ? "text-gray-500" : "text-rose-600",
           ],
         },
         isZero
@@ -233,24 +260,51 @@ const transferColumns = computed<DataTableColumns<any>>(() => [
   {
     title: "付款人",
     key: "from",
+    align: "center",
     render(row) {
       const person = splitStore.participants.find((p) => p.id === row.from);
-      return h("div", { class: "transfer-person from-person" }, person?.name || "未知");
+      return h(
+        NTag,
+        {
+          type: "error",
+          size: "small",
+          round: true,
+          bordered: false,
+        },
+        {
+          default: () => person?.name || "未知",
+          icon: () => h(Icon, { icon: "mdi:arrow-up" }),
+        }
+      );
     },
   },
   {
     title: "收款人",
     key: "to",
+    align: "center",
     render(row) {
       const person = splitStore.participants.find((p) => p.id === row.to);
-      return h("div", { class: "transfer-person to-person" }, person?.name || "未知");
+      return h(
+        NTag,
+        {
+          type: "success",
+          size: "small",
+          round: true,
+          bordered: false,
+        },
+        {
+          default: () => person?.name || "未知",
+          icon: () => h(Icon, { icon: "mdi:arrow-down" }),
+        }
+      );
     },
   },
   {
     title: "金额",
     key: "amount",
+    align: "center",
     render(row) {
-      return h("div", { class: "transfer-amount" }, `¥${row.amount.toFixed(2)}`);
+      return h("div", { class: "font-semibold text-indigo-600" }, `¥${row.amount.toFixed(2)}`);
     },
   },
 ]);
@@ -294,20 +348,18 @@ const hasData = computed(() => {
 </script>
 
 <template>
-  <div class="split-results">
+  <div class="flex flex-col gap-6">
     <!-- 无数据状态 -->
-    <div v-if="!hasData" class="empty-state">
+    <div v-if="!hasData" class="flex justify-center items-center min-h-[400px]">
       <NEmpty description="暂无分账数据">
         <template #icon>
-          <NIcon size="64" class="empty-icon">
             <Icon icon="mdi:calculator-off" />
-          </NIcon>
         </template>
         <template #extra>
           <NSpace vertical>
             <NText depth="3">请先添加参与者和消费项目</NText>
             <NSpace>
-              <NButton @click="$emit('switchTab', 'participants')" round>
+              <NButton @click="$emit('update:currentTab', 'participants')" round>
                 <template #icon>
                   <NIcon>
                     <Icon icon="mdi:account-group" />
@@ -315,7 +367,7 @@ const hasData = computed(() => {
                 </template>
                 添加参与者
               </NButton>
-              <NButton @click="$emit('switchTab', 'expenses')" type="primary" round>
+              <NButton @click="$emit('update:currentTab', 'expenses')" type="primary" round>
                 <template #icon>
                   <NIcon>
                     <Icon icon="mdi:cash-multiple" />
@@ -330,67 +382,74 @@ const hasData = computed(() => {
     </div>
 
     <!-- 有数据状态 -->
-    <div v-else class="results-container">
+    <div v-else class="flex flex-col gap-6">
       <!-- 结果摘要 -->
-      <NCard class="summary-card">
+      <NCard class="bg-white rounded-lg shadow-md">
         <template #header>
-          <div class="card-header">
-            <NIcon size="20" class="card-icon">
-              <Icon icon="mdi:information" />
-            </NIcon>
-            <span>分账摘要</span>
+          <div class="flex items-center gap-2">
+              <Icon icon="mdi:information" class="text-indigo-500 size-6" />
+            <span class="text-lg font-semibold text-gray-800">分账摘要</span>
           </div>
         </template>
 
-        <div class="summary-content">
-          <div class="summary-stats">
-            <div class="stat-card">
-              <div class="stat-icon">
+        <div class="flex flex-col gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-sm">
+              <div class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
                 <NIcon size="24">
                   <Icon icon="mdi:account-group" />
                 </NIcon>
               </div>
-              <div class="stat-data">
-                <div class="stat-value">{{ splitStore.participants.length }}</div>
-                <div class="stat-label">参与人数</div>
+              <div class="flex flex-col">
+                <div class="text-xl font-semibold text-gray-800">{{ splitStore.participants.length }}</div>
+                <div class="text-sm text-gray-500">参与人数</div>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon">
+            <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-sm">
+              <div class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white">
                 <NIcon size="24">
                   <Icon icon="mdi:receipt-text" />
                 </NIcon>
               </div>
-              <div class="stat-data">
-                <div class="stat-value">{{ splitStore.expenses.length }}</div>
-                <div class="stat-label">消费项目</div>
+              <div class="flex flex-col">
+                <div class="text-xl font-semibold text-gray-800">{{ splitStore.expenses.length }}</div>
+                <div class="text-sm text-gray-500">消费项目</div>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon">
+            <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-sm">
+              <div class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
                 <NIcon size="24">
                   <Icon icon="mdi:cash" />
                 </NIcon>
               </div>
-              <div class="stat-data">
-                <div class="stat-value">¥{{ splitStore.totalAmount.toFixed(2) }}</div>
-                <div class="stat-label">总金额</div>
+              <div class="flex flex-col">
+                <div class="text-xl font-semibold text-gray-800">¥{{ splitStore.totalAmount.toFixed(2) }}</div>
+                <div class="text-sm text-gray-500">总金额</div>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon">
+            <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-sm">
+              <div class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white">
                 <NIcon size="24">
                   <Icon icon="mdi:calculator" />
                 </NIcon>
               </div>
-              <div class="stat-data">
-                <div class="stat-value">¥{{ (splitStore.totalAmount / splitStore.participants.length).toFixed(2) }}</div>
-                <div class="stat-label">人均消费</div>
+              <div class="flex flex-col">
+                <div class="text-xl font-semibold text-gray-800">¥{{ (splitStore.totalAmount / splitStore.participants.length).toFixed(2) }}</div>
+                <div class="text-sm text-gray-500">人均消费</div>
               </div>
             </div>
           </div>
 
-          <div class="summary-actions">
+          <div class="flex justify-between items-center">
+            <NButton @click="showClearConfirm = true" type="warning" round>
+              <template #icon>
+                <NIcon>
+                  <Icon icon="mdi:delete-sweep" />
+                </NIcon>
+              </template>
+              清空数据
+            </NButton>
+            
             <NSpace>
               <NButton @click="generateShareLink" round>
                 <template #icon>
@@ -422,51 +481,65 @@ const hasData = computed(() => {
       </NCard>
 
       <!-- 个人结算表 -->
-      <NCard class="results-card">
+      <NCard class="bg-white rounded-lg shadow-md">
         <template #header>
-          <div class="card-header">
-            <NIcon size="20" class="card-icon">
-              <Icon icon="mdi:account-cash" />
-            </NIcon>
-            <span>个人结算表</span>
+          <div class="flex items-center gap-2">
+              <Icon icon="mdi:account-cash" class="text-indigo-500 size-6" />
+            <span class="text-lg font-semibold text-gray-800">个人结算表</span>
           </div>
         </template>
 
-        <div class="results-table-container">
+        <div class="overflow-x-auto">
           <NDataTable :columns="columns" :data="participantSummary" :bordered="false" />
         </div>
       </NCard>
 
       <!-- 转账方案 -->
-      <NCard class="transfer-card">
+      <NCard class="bg-white rounded-lg shadow-md">
         <template #header>
-          <div class="card-header">
-            <NIcon size="20" class="card-icon">
-              <Icon icon="mdi:bank-transfer" />
-            </NIcon>
-            <span>最优转账方案</span>
-            <NTag v-if="transferPlan.length > 0" class="count-tag" type="success" size="small" round>
+          <div class="flex items-center gap-2">
+              <Icon icon="mdi:bank-transfer" class="text-indigo-500 size-6"/>
+            <span class="text-lg font-semibold text-gray-800">最优转账方案</span>
+            <NTag v-if="transferPlan.length > 0" class="ml-1" type="success" size="small" round>
               {{ transferPlan.length }}笔
             </NTag>
           </div>
         </template>
 
-        <div v-if="transferPlan.length === 0" class="empty-transfers">
+        <div v-if="transferPlan.length === 0" class="flex items-center justify-center gap-2 py-8 text-emerald-600 font-medium">
           <NIcon size="24">
             <Icon icon="mdi:check-circle" />
           </NIcon>
           <span>所有人已结清，无需转账</span>
         </div>
-        <div v-else class="transfer-table-container">
+        <div v-else class="overflow-x-auto">
           <NDataTable :columns="transferColumns" :data="transferPlan" :bordered="false" />
         </div>
       </NCard>
     </div>
 
+    <!-- 清空数据确认弹窗 -->
+    <NModal v-model:show="showClearConfirm" preset="dialog" title="确认清空数据" positive-text="确认清空" negative-text="取消" @positive-click="clearAllData" @negative-click="showClearConfirm = false">
+      <div class="flex flex-col gap-4 py-2">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 text-amber-600">
+            <NIcon size="24">
+              <Icon icon="mdi:alert" />
+            </NIcon>
+          </div>
+          <div class="text-lg font-medium text-gray-800">确定要清空所有数据吗？</div>
+        </div>
+        <div class="text-gray-600 pl-12">
+          <p>此操作将清空所有参与者和消费记录，且无法恢复。</p>
+          <p class="mt-2 text-amber-600 font-medium">请确认是否继续？</p>
+        </div>
+      </div>
+    </NModal>
+
     <!-- 分享弹窗 -->
-    <NModal v-model:show="showShareModal" preset="card" class="share-modal">
+    <NModal v-model:show="showShareModal" preset="card" class="w-[500px] max-w-[90vw]">
       <template #header>
-        <div class="modal-header">
+        <div class="flex items-center gap-2 text-lg font-semibold">
           <NIcon size="20">
             <Icon icon="mdi:share-variant" />
           </NIcon>
@@ -474,15 +547,15 @@ const hasData = computed(() => {
         </div>
       </template>
 
-      <div class="modal-content">
-        <div class="form-group">
-          <label>分享标题</label>
+      <div class="flex flex-col gap-5 py-2">
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-gray-600">分享标题</label>
           <NInput v-model:value="shareTitle" placeholder="输入分享标题" />
         </div>
 
-        <div class="form-group">
-          <label>分享链接</label>
-          <div class="share-link-container">
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-gray-600">分享链接</label>
+          <div class="flex gap-2">
             <NInput v-model:value="shareLink" readonly />
             <NButton @click="copyShareLink" type="primary">
               <template #icon>
@@ -495,8 +568,8 @@ const hasData = computed(() => {
           </div>
         </div>
 
-        <div class="share-qrcode">
-          <div class="qrcode-placeholder">
+        <div class="flex justify-center py-4">
+          <div class="flex flex-col items-center gap-2 text-gray-400">
             <NIcon size="64">
               <Icon icon="mdi:qrcode" />
             </NIcon>
@@ -506,271 +579,10 @@ const hasData = computed(() => {
       </div>
 
       <template #footer>
-        <div class="modal-footer">
+        <div class="flex justify-end mt-2">
           <NButton @click="showShareModal = false" round>关闭</NButton>
         </div>
       </template>
     </NModal>
   </div>
 </template>
-
-<style scoped>
-.split-results {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* 卡片样式 */
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.card-icon {
-  color: var(--primary-color);
-}
-
-.count-tag {
-  margin-left: 0.25rem;
-}
-
-/* 空状态 */
-.empty-state {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-}
-
-.empty-icon {
-  color: var(--primary-color);
-}
-
-/* 结果容器 */
-.results-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* 摘要卡片 */
-.summary-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.summary-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  transition: all 0.2s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.stat-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--primary-gradient);
-  color: white;
-}
-
-.stat-data {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--text-tertiary);
-}
-
-.summary-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* 表格样式 */
-.results-table-container,
-.transfer-table-container {
-  overflow-x: auto;
-}
-
-.participant-name {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.amount {
-  font-weight: 500;
-}
-
-.paid-amount {
-  color: #f59e0b;
-}
-
-.consumed-amount {
-  color: #10b981;
-  cursor: help;
-  text-decoration: underline dotted;
-  text-decoration-thickness: 1px;
-}
-
-.balance-amount {
-  font-weight: 600;
-}
-
-.positive-balance {
-  color: #10b981;
-}
-
-.negative-balance {
-  color: #f43f5e;
-}
-
-.zero-balance {
-  color: #6b7280;
-}
-
-/* 转账表格 */
-.transfer-person {
-  font-weight: 500;
-}
-
-.from-person {
-  color: #f43f5e;
-}
-
-.to-person {
-  color: #10b981;
-}
-
-.transfer-amount {
-  font-weight: 600;
-  color: var(--primary-color);
-}
-
-.empty-transfers {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 2rem;
-  color: #10b981;
-  font-weight: 500;
-}
-
-/* 消费明细弹窗 */
-.popover-header {
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.detail-name {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.detail-amount {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-/* 分享弹窗 */
-.share-modal {
-  width: 500px;
-  max-width: 90vw;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
-.modal-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.5rem 0;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.share-link-container {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.share-qrcode {
-  display: flex;
-  justify-content: center;
-  padding: 1rem 0;
-}
-
-.qrcode-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-tertiary);
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 0.5rem;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .summary-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-</style>
