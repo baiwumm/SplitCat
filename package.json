@@ -19,7 +19,8 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.ts",
-    "lint:fix": "eslint . --ext .vue,.js,.ts --fix"
+    "lint:fix": "eslint . --ext .vue,.js,.ts --fix",
+    "release":"release-it"
   },
   "dependencies": {
     "@iconify/vue": "^5.0.0",
