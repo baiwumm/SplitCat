@@ -1,7 +1,7 @@
 {
   "name": "split-cat",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "author": {
     "name": "baiwumm",
@@ -20,7 +20,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.ts",
     "lint:fix": "eslint . --ext .vue,.js,.ts --fix",
-    "release":"release-it"
+    "release": "release-it"
   },
   "dependencies": {
     "@iconify/vue": "^5.0.0",
