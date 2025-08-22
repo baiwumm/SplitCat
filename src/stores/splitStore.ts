@@ -7,7 +7,7 @@ export interface ExpenseItem {
   name: string;
   amount: number;
   participants: string[]; // 参与此项消费的人员ID
-  payerId: string; // 支付者ID
+  payerId?: string; // 支付者ID
   category?: string;
   date?: string;
 }

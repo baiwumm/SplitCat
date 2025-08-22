@@ -51,7 +51,7 @@ const columns = computed<DataTableColumns<ExpenseItem>>(() => [
   {
     title: "消费项目",
     key: "name",
-    align:'center',
+    align: "center",
     render(row) {
       return h("div", { class: "font-medium text-gray-800" }, row.name);
     },
@@ -59,7 +59,7 @@ const columns = computed<DataTableColumns<ExpenseItem>>(() => [
   {
     title: "金额",
     key: "amount",
-    align:'center',
+    align: "center",
     render(row) {
       return h("div", { class: "font-semibold text-red-500" }, `¥${row.amount.toFixed(2)}`);
     },
@@ -93,56 +93,66 @@ const columns = computed<DataTableColumns<ExpenseItem>>(() => [
       if (row.participants.length === 0) {
         return h("div", { class: "text-sm text-gray-400" }, "无参与者");
       }
-      
+
       // 如果参与者太多，只显示前两个并加上"等x人"
       const maxDisplay = 2;
       const displayParticipants = row.participants.slice(0, maxDisplay);
       const remainingCount = row.participants.length - maxDisplay;
-      
-      return h("div", { class: "flex flex-wrap gap-1 justify-center" }, [
-        ...displayParticipants.map(id => {
-          const name = getParticipantName(id);
-          return h(
-            NTag,
-            {
-              type: "primary",
-              size: "small",
-              round: true,
-              bordered: false,
-            },
-            {
-              default: () => name,
-              icon: () => h(Icon, { icon: "mdi:account" }),
-            }
-          );
-        }),
-        remainingCount > 0 ? h(
-          NTag,
-          {
-            type: "default",
-            size: "small",
-            round: true,
-          },
-          {
-            default: () => `等${row.participants.length}人`,
-          }
-        ) : null
-      ].filter(Boolean));
+
+      return h(
+        "div",
+        { class: "flex flex-wrap gap-1 justify-center" },
+        [
+          ...displayParticipants.map((id) => {
+            const name = getParticipantName(id);
+            return h(
+              NTag,
+              {
+                type: "primary",
+                size: "small",
+                round: true,
+                bordered: false,
+              },
+              {
+                default: () => name,
+                icon: () => h(Icon, { icon: "mdi:account" }),
+              }
+            );
+          }),
+          remainingCount > 0
+            ? h(
+                NTag,
+                {
+                  type: "default",
+                  size: "small",
+                  round: true,
+                },
+                {
+                  default: () => `等${row.participants.length}人`,
+                }
+              )
+            : null,
+        ].filter(Boolean)
+      );
     },
   },
   {
     title: "人均",
     key: "average",
-    align:'center',
+    align: "center",
     render(row) {
-      return h("div", { class: "text-sm font-medium text-indigo-600" }, `¥${(row.amount / row.participants.length).toFixed(2)}`);
+      return h(
+        "div",
+        { class: "text-sm font-medium text-indigo-600" },
+        `¥${(row.amount / row.participants.length).toFixed(2)}`
+      );
     },
   },
   {
     title: "操作",
     key: "actions",
     width: 120,
-    align:'center',
+    align: "center",
     render(row) {
       return h("div", { class: "flex gap-2" }, [
         h(
@@ -154,10 +164,7 @@ const columns = computed<DataTableColumns<ExpenseItem>>(() => [
             onClick: () => editExpense(row),
           },
           {
-            default: () => [
-              h(NIcon, null, { default: () => h(Icon, { icon: "mdi:pencil" }) }),
-              "编辑"
-            ]
+            default: () => [h(NIcon, null, { default: () => h(Icon, { icon: "mdi:pencil" }) }), "编辑"],
           }
         ),
         h(
@@ -175,10 +182,7 @@ const columns = computed<DataTableColumns<ExpenseItem>>(() => [
                   class: "flex items-center gap-1",
                 },
                 {
-                  default: () => [
-                    h(NIcon, null, { default: () => h(Icon, { icon: "mdi:delete" }) }),
-                    "删除"
-                  ]
+                  default: () => [h(NIcon, null, { default: () => h(Icon, { icon: "mdi:delete" }) }), "删除"],
                 }
               ),
             default: () => "确定要删除此消费项目吗？",
@@ -243,12 +247,8 @@ const addExpense = () => {
     selectedParticipants.value.push(selectedPayer.value);
   }
 
-  const expenseId = splitStore.addExpense(
-    newExpense.name, 
-    newExpense.amount, 
-    selectedParticipants.value
-  );
-  
+  const expenseId = splitStore.addExpense(newExpense.name, newExpense.amount, selectedParticipants.value);
+
   // 更新支付者信息
   splitStore.updateExpense(expenseId, { payerId: selectedPayer.value });
 
@@ -319,13 +319,6 @@ const getParticipantName = (participantId: string) => {
   const participant = splitStore.participants.find((p) => p.id === participantId);
   return participant?.name || "未知";
 };
-
-const getParticipantNames = (participantIds: string[]) => {
-  return participantIds.map((id) => {
-    const participant = splitStore.participants.find((p) => p.id === id);
-    return participant?.name || "未知";
-  });
-};
 </script>
 
 <template>
@@ -355,8 +348,14 @@ const getParticipantNames = (participantIds: string[]) => {
             </div>
 
             <div class="flex flex-col gap-2">
-              <NInputNumber v-model:value="newExpense.amount" placeholder="消费金额" :precision="2" :min="0" class="w-full"
-                round>
+              <NInputNumber
+                v-model:value="newExpense.amount"
+                placeholder="消费金额"
+                :precision="2"
+                :min="0"
+                class="w-full"
+                round
+              >
                 <template #prefix>¥</template>
               </NInputNumber>
             </div>
@@ -367,8 +366,10 @@ const getParticipantNames = (participantIds: string[]) => {
                 <span class="text-sm font-medium text-gray-600">支付者</span>
               </div>
 
-              <div v-if="splitStore.participants.length === 0"
-                class="flex items-center gap-2 p-3 bg-gray-100 rounded-md text-gray-500 text-sm">
+              <div
+                v-if="splitStore.participants.length === 0"
+                class="flex items-center gap-2 p-3 bg-gray-100 rounded-md text-gray-500 text-sm"
+              >
                 <NIcon size="18">
                   <Icon icon="mdi:account-alert" />
                 </NIcon>
@@ -376,9 +377,16 @@ const getParticipantNames = (participantIds: string[]) => {
               </div>
               <div v-else class="flex flex-col gap-3">
                 <div class="flex flex-wrap gap-2">
-                  <NTag v-for="participant in splitStore.participants" :key="participant.id"
-                    :type="selectedPayer === participant.id ? 'success' : 'default'" :bordered="false"
-                    round size="small" class="!cursor-pointer" @click="selectedPayer = participant.id">
+                  <NTag
+                    v-for="participant in splitStore.participants"
+                    :key="participant.id"
+                    :type="selectedPayer === participant.id ? 'success' : 'default'"
+                    :bordered="false"
+                    round
+                    size="small"
+                    class="!cursor-pointer"
+                    @click="selectedPayer = participant.id"
+                  >
                     {{ participant.name }}
                     <template #icon>
                       <Icon icon="mdi:cash" />
@@ -398,8 +406,10 @@ const getParticipantNames = (participantIds: string[]) => {
                 </div>
               </div>
 
-              <div v-if="splitStore.participants.length === 0"
-                class="flex items-center gap-2 p-3 bg-gray-100 rounded-md text-gray-500 text-sm">
+              <div
+                v-if="splitStore.participants.length === 0"
+                class="flex items-center gap-2 p-3 bg-gray-100 rounded-md text-gray-500 text-sm"
+              >
                 <NIcon size="18">
                   <Icon icon="mdi:account-alert" />
                 </NIcon>
@@ -407,9 +417,16 @@ const getParticipantNames = (participantIds: string[]) => {
               </div>
               <div v-else class="flex flex-col gap-3">
                 <div class="flex flex-wrap gap-2">
-                  <NTag v-for="participant in splitStore.participants" :key="participant.id"
-                    :type="selectedParticipants.includes(participant.id) ? 'primary' : 'default'" :bordered="false"
-                    round size="small" class="!cursor-pointer" @click="toggleParticipant(participant.id)">
+                  <NTag
+                    v-for="participant in splitStore.participants"
+                    :key="participant.id"
+                    :type="selectedParticipants.includes(participant.id) ? 'primary' : 'default'"
+                    :bordered="false"
+                    round
+                    size="small"
+                    class="!cursor-pointer"
+                    @click="toggleParticipant(participant.id)"
+                  >
                     {{ participant.name }}
                     <template #icon>
                       <Icon icon="mdi:account" />
@@ -419,9 +436,16 @@ const getParticipantNames = (participantIds: string[]) => {
               </div>
             </div>
 
-            <NButton @click="addExpense" type="primary" block round
-              :disabled="!newExpense.name.trim() || !newExpense.amount || selectedParticipants.length === 0 || !selectedPayer"
-              class="h-10 font-medium mt-2">
+            <NButton
+              @click="addExpense"
+              type="primary"
+              block
+              round
+              :disabled="
+                !newExpense.name.trim() || !newExpense.amount || selectedParticipants.length === 0 || !selectedPayer
+              "
+              class="h-10 font-medium mt-2"
+            >
               <template #icon>
                 <NIcon>
                   <Icon icon="mdi:plus" />
@@ -433,17 +457,21 @@ const getParticipantNames = (participantIds: string[]) => {
 
           <!-- 总计信息 -->
           <div v-if="splitStore.expenses.length > 0" class="mt-6 relative overflow-hidden">
-            <div class="bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-700 rounded-2xl p-6 shadow-lg relative z-10">
+            <div
+              class="bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-700 rounded-2xl p-6 shadow-lg relative z-10"
+            >
               <!-- 装饰元素 -->
               <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
               <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12 blur-lg"></div>
-              
+
               <!-- 金额显示 -->
               <div class="flex items-center justify-between mb-4">
                 <div class="flex flex-col">
                   <span class="text-white/80 text-sm font-medium mb-1">消费总计</span>
                   <div class="flex items-baseline">
-                    <span class="text-white text-4xl font-bold tracking-tight">¥{{ splitStore.totalAmount.toFixed(2) }}</span>
+                    <span class="text-white text-4xl font-bold tracking-tight"
+                      >¥{{ splitStore.totalAmount.toFixed(2) }}</span
+                    >
                     <span class="text-white/70 ml-2 text-sm">CNY</span>
                   </div>
                 </div>
@@ -451,7 +479,7 @@ const getParticipantNames = (participantIds: string[]) => {
                   <Icon icon="mdi:currency-cny" class="text-white text-2xl" />
                 </div>
               </div>
-              
+
               <!-- 统计信息 -->
               <div class="grid grid-cols-2 gap-4 mt-6">
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
@@ -463,7 +491,7 @@ const getParticipantNames = (participantIds: string[]) => {
                     <div class="text-white/70 text-xs">消费项目</div>
                   </div>
                 </div>
-                
+
                 <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
                   <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                     <Icon icon="mdi:account-group" class="text-white text-xl" />
@@ -474,7 +502,7 @@ const getParticipantNames = (participantIds: string[]) => {
                   </div>
                 </div>
               </div>
-              
+
               <!-- 人均消费 -->
               <div class="mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-3 flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -483,11 +511,13 @@ const getParticipantNames = (participantIds: string[]) => {
                   </div>
                   <div>
                     <div class="text-white/70 text-xs">人均消费</div>
-                    <div class="text-white text-lg font-bold">¥{{ (splitStore.totalAmount / splitStore.participants.length).toFixed(2) }}</div>
+                    <div class="text-white text-lg font-bold">
+                      ¥{{ (splitStore.totalAmount / splitStore.participants.length).toFixed(2) }}
+                    </div>
                   </div>
                 </div>
                 <div class="text-white/60 text-xs">
-                  {{ new Date().toLocaleDateString('zh-CN') }}
+                  {{ new Date().toLocaleDateString("zh-CN") }}
                 </div>
               </div>
             </div>
@@ -524,15 +554,21 @@ const getParticipantNames = (participantIds: string[]) => {
           <!-- 消费列表 -->
           <div v-else class="flex flex-col">
             <div class="overflow-x-auto">
-              <NDataTable :columns="columns" :data="splitStore.expenses" :pagination="{ pageSize: 10 }"
-                :bordered="false" class="expense-table" />
+              <NDataTable
+                :columns="columns"
+                :data="splitStore.expenses"
+                :pagination="{ pageSize: 10 }"
+                :bordered="false"
+                class="expense-table"
+              />
             </div>
           </div>
 
-
           <!-- 操作提示 -->
-          <NCard v-if="splitStore.expenses.length > 0"
-            class="bg-gradient-to-r from-green-200 to-blue-200 mt-4 rounded-lg shadow-md">
+          <NCard
+            v-if="splitStore.expenses.length > 0"
+            class="bg-gradient-to-r from-green-200 to-blue-200 mt-4 rounded-lg shadow-md"
+          >
             <div class="flex items-start gap-3">
               <NIcon size="24" class="text-gray-800/60 mt-0.5">
                 <Icon icon="mdi:lightbulb-on" />
@@ -571,21 +607,34 @@ const getParticipantNames = (participantIds: string[]) => {
       </div>
 
       <div class="flex flex-col gap-2">
-        <NInputNumber v-model:value="editingExpense.amount" placeholder="消费金额" :precision="2" :min="0" class="w-full"
-          round>
+        <NInputNumber
+          v-model:value="editingExpense.amount"
+          placeholder="消费金额"
+          :precision="2"
+          :min="0"
+          class="w-full"
+          round
+        >
           <template #prefix>¥</template>
         </NInputNumber>
       </div>
-      
+
       <!-- 支付者选择 -->
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <span class="text-sm font-medium text-gray-600">支付者</span>
         </div>
         <div class="flex flex-wrap gap-2">
-          <NTag v-for="participant in splitStore.participants" :key="participant.id"
-            :type="editingExpense.payerId === participant.id ? 'success' : 'default'" :bordered="false" round
-            size="small" class="!cursor-pointer" @click="editingExpense.payerId = participant.id">
+          <NTag
+            v-for="participant in splitStore.participants"
+            :key="participant.id"
+            :type="editingExpense.payerId === participant.id ? 'success' : 'default'"
+            :bordered="false"
+            round
+            size="small"
+            class="!cursor-pointer"
+            @click="editingExpense.payerId = participant.id"
+          >
             {{ participant.name }}
             <template #icon>
               <Icon icon="mdi:cash" />
@@ -600,9 +649,16 @@ const getParticipantNames = (participantIds: string[]) => {
           <span class="text-sm font-medium text-gray-600">参与人员</span>
         </div>
         <div class="flex flex-wrap gap-2 max-h-[120px] overflow-y-auto">
-          <NTag v-for="participant in splitStore.participants" :key="participant.id"
-            :type="editingExpense.participants.includes(participant.id) ? 'primary' : 'default'" :bordered="false" round
-            size="small" class="!cursor-pointer" @click="toggleEditParticipant(participant.id)">
+          <NTag
+            v-for="participant in splitStore.participants"
+            :key="participant.id"
+            :type="editingExpense.participants.includes(participant.id) ? 'primary' : 'default'"
+            :bordered="false"
+            round
+            size="small"
+            class="!cursor-pointer"
+            @click="toggleEditParticipant(participant.id)"
+          >
             {{ participant.name }}
             <template #icon>
               <Icon icon="mdi:account" />
